@@ -118,33 +118,127 @@ class SIISParser:
             
             end_pos = matches[i + 1].start() if i + 1 < len(matches) else len(content)
             section_body = content[start_pos:end_pos].strip()
-            
-            # Combine header title and section body for full verbatim text
-            full_section_text = f"{header_markup} {header_title}\n{section_body}".strip()
-            steps = self._extract_steps(section_body)
-            
-            is_diag = (
-                self._is_diagnostic_text(header_title) or 
-                self._is_diagnostic_text(section_body)
-            )
 
             # Skip glossary sections from candidate actions
             if header_title.lower() == "glossary":
                 continue
 
-            sections.append(
+            sub_secs = self._split_composite_section_if_needed(
+                header_title=header_title,
+                header_level=header_level,
+                section_body=section_body,
+                base_id=f"sec_{len(sections) + 1}"
+            )
+            sections.extend(sub_secs)
+
+        return sections
+
+    def _split_composite_section_if_needed(
+        self,
+        header_title: str,
+        header_level: int,
+        section_body: str,
+        base_id: str
+    ) -> List[SIISSection]:
+        """Split tips or multi-topic sections into discrete granular sub-sections if they contain independent procedures."""
+        # Do not split atomic numbered steps e.g. "Step 1: Check Physical Damage", "Step 2: Force a Restart"
+        if re.match(r"^Step\s+\d+", header_title, re.IGNORECASE):
+            steps = self._extract_steps(section_body)
+            is_diag = self._is_diagnostic_text(header_title) or self._is_diagnostic_text(section_body)
+            full_text = f"{'#' * header_level} {header_title}\n{section_body}".strip()
+            return [
                 SIISSection(
-                    section_id=f"sec_{len(sections) + 1}",
+                    section_id=base_id,
                     title=header_title,
                     header_level=header_level,
-                    raw_text=full_section_text,
+                    raw_text=full_text,
+                    steps=steps,
+                    is_actionable=len(steps) > 0,
+                    is_diagnostic=is_diag
+                )
+            ]
+
+        paragraphs = [p.strip() for p in section_body.split("\n") if p.strip()]
+        
+        # Split if section explicitly represents tips/factors or contains multiple independent conditional paragraphs
+        is_composite_topic = any(w in header_title.lower() for w in ["tips", "factors", "service options", "understanding", "things to check"])
+        has_conditional_paragraphs = sum(1 for p in paragraphs if p.startswith("If ") or re.match(r"^[A-Z][A-Za-z\s]+:", p)) >= 2
+        
+        if not (is_composite_topic or has_conditional_paragraphs) or len(paragraphs) <= 1:
+            steps = self._extract_steps(section_body)
+            is_diag = self._is_diagnostic_text(header_title) or self._is_diagnostic_text(section_body)
+            full_text = f"{'#' * header_level} {header_title}\n{section_body}".strip()
+            return [
+                SIISSection(
+                    section_id=base_id,
+                    title=header_title,
+                    header_level=header_level,
+                    raw_text=full_text,
+                    steps=steps,
+                    is_actionable=len(steps) > 0,
+                    is_diagnostic=is_diag
+                )
+            ]
+
+
+        sub_sections: List[SIISSection] = []
+        for j, para in enumerate(paragraphs):
+            # Skip mere preamble sentences like "Here are some tips..."
+            if j == 0 and len(para) < 100 and ("here are some tips" in para.lower() or "please consider the following" in para.lower()):
+                continue
+
+            sub_title = self._derive_sub_title(para, header_title)
+            steps = self._extract_steps(para)
+            is_diag = self._is_diagnostic_text(sub_title) or self._is_diagnostic_text(para)
+            
+            sub_sections.append(
+                SIISSection(
+                    section_id=f"{base_id}_{j+1}",
+                    title=sub_title,
+                    header_level=header_level + 1,
+                    raw_text=para,
                     steps=steps,
                     is_actionable=len(steps) > 0,
                     is_diagnostic=is_diag
                 )
             )
 
-        return sections
+        return sub_sections if sub_sections else [
+            SIISSection(
+                section_id=base_id,
+                title=header_title,
+                header_level=header_level,
+                raw_text=f"{'#' * header_level} {header_title}\n{section_body}".strip(),
+                steps=self._extract_steps(section_body),
+                is_actionable=True,
+                is_diagnostic=self._is_diagnostic_text(header_title)
+            )
+        ]
+
+    def _derive_sub_title(self, paragraph: str, parent_title: str) -> str:
+        """Derive a concise sub-title from a paragraph, retaining parent topic context."""
+        colon_match = re.match(r"^([A-Z][A-Za-z0-9\s/]+):", paragraph)
+        if colon_match:
+            sub = colon_match.group(1).strip()
+            return f"{parent_title}: {sub}" if sub.lower() not in parent_title.lower() else sub
+        
+        # If paragraph starts with "If ..."
+        if paragraph.startswith("If "):
+            first_sentence = paragraph.split(".")[0].strip()
+            sub = first_sentence if len(first_sentence) < 80 else first_sentence[:75].strip() + "..."
+            return f"{parent_title} - {sub}"
+        
+        # If paragraph starts with "On a ..." or "On ..."
+        if paragraph.startswith("On "):
+            first_sentence = paragraph.split(".")[0].strip()
+            sub = first_sentence if len(first_sentence) < 80 else first_sentence[:75].strip() + "..."
+            return f"{parent_title} - {sub}"
+
+        first_sentence = paragraph.split(".")[0].strip()
+        sub = first_sentence[:60].strip() if len(first_sentence) > 60 else first_sentence
+        return f"{parent_title}: {sub}" if sub.lower() not in parent_title.lower() else sub
+
+
 
     def _extract_steps(self, text: str) -> List[str]:
         """Extract ordered sequential procedural steps from text while preserving exact wording."""

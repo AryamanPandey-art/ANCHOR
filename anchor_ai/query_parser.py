@@ -14,17 +14,25 @@ class QueryParser:
         re.IGNORECASE
     )
 
-    # Direction patterns
+    # Symptom failure phrases that mention "turn on" or "turn off" but are NOT commands
+    _SYMPTOM_DIRECTION_GUARDS = [
+        r"\b(?:won['’]?t|doesn['’]?t|does\s+not|can['’]?t|cannot|unable\s+to|fails?\s+to|failed\s+to)\s+(?:try\s+to\s+|attempt\s+to\s+)?turn\s+(?:it\s+)?(?:on|off)\b",
+        r"\b(?:try\s+to|tried\s+to|trying\s+to|attempting\s+to)\s+turn\s+(?:it\s+)?(?:on|off)\b",
+        r"\b(?:when\s+i|whenever\s+i|after\s+i)\s+turn\s+(?:it\s+)?(?:on|off)\b",
+        r"\bturn\s+(?:it\s+)?on\s+(?:after|on\s+its\s+own|by\s+itself)\b",
+    ]
+
+    # Explicit configuration command patterns
     _OFF_PATTERNS = [
-        r"\b(?:turn\s+off|turnoff|switch\s+off|switchoff)\b",
-        r"\b(?:disable|deactivate|stop|prevent)\b",
-        r"\b(?:remove|delete|get\s+rid\s+of|close|exit|dismiss)\b",
-        r"\b(?:don['’]?t\s+want|wants?\s+to\s+remove|turn\s+it\s+off)\b",
+        r"\b(?:turn\s+off|turnoff|switch\s+off|switchoff)\s+(?!it\s+(?:after|when|on\s+its\s+own))([a-z0-9_\s]+)",
+        r"\b(?:disable|deactivate)\s+([a-z0-9_\s]+)",
+        r"\b(?:wants?\s+to\s+remove|wants?\s+to\s+disable|wants?\s+to\s+turn\s+off|want\s+to\s+remove\s+it|get\s+rid\s+of)\b",
+        r"\b(?:remove|delete|dismiss)\s+(?:the\s+|this\s+)?(?:floating|shortcut|circle|panel|widget|pair)\b",
     ]
     _ON_PATTERNS = [
-        r"\b(?:turn\s+on|turnon|switch\s+on|switchon)\b",
-        r"\b(?:enable|activate|start|resume)\b",
-        r"\b(?:turn\s+it\s+on|wants?\s+to\s+enable)\b",
+        r"\b(?:turn\s+on|turnon|switch\s+on|switchon)\s+(?!it\s+(?:after|when|on\s+its\s+own))([a-z0-9_\s]+)",
+        r"\b(?:enable|activate)\s+([a-z0-9_\s]+)",
+        r"\b(?:wants?\s+to\s+enable|wants?\s+to\s+activate|wants?\s+to\s+turn\s+on)\b",
     ]
 
     # Feature mapping rules
@@ -42,6 +50,7 @@ class QueryParser:
 
     def parse(self, query: str) -> QueryIntent:
         """Parse natural language query into a structured QueryIntent object."""
+        sub_symptoms = self._extract_sub_symptoms(query)
         clean_query = self._sanitize_query(query)
         device = self._extract_device(clean_query)
         direction = self._extract_direction(clean_query)
@@ -56,13 +65,29 @@ class QueryParser:
             user_state=state,
             direction=direction,
             technical_keywords=keywords,
-            device_model=device
+            device_model=device,
+            sub_symptoms=sub_symptoms
         )
+
+    def _extract_sub_symptoms(self, query: str) -> List[str]:
+        """Extract discrete numbered clauses from multi-symptom queries."""
+        clauses = []
+        for m in re.finditer(r'(?:\b\d+[.)]\s*(?:"([^"]+)"|\'([^\']+)\'|([^\n\d]+?)(?=\s+\d+[.)]|$)))', query):
+            clause = m.group(1) or m.group(2) or m.group(3)
+            if clause and clause.strip():
+                clean_clause = clause.strip().strip("\"' \t\n\r")
+                if len(clean_clause) > 3:
+                    clauses.append(clean_clause)
+        return clauses
 
     def _sanitize_query(self, query: str) -> str:
         """Strip numbering prefixes, quotes, and excess whitespace."""
-        # e.g. 1. "My Galaxy S24..." -> My Galaxy S24...
-        cleaned = re.sub(r"^\s*\d+[.)]\s*", "", query)
+        # Strip all numbering patterns like 1. "..." 2. "..."
+        sub_clauses = self._extract_sub_symptoms(query)
+        if sub_clauses:
+            cleaned = " ".join(sub_clauses)
+        else:
+            cleaned = re.sub(r"^\s*\d+[.)]\s*", "", query)
         cleaned = cleaned.strip("\"' \t\n\r")
         return cleaned
 
@@ -77,15 +102,19 @@ class QueryParser:
         """Determine if query is an explicit ON/OFF command or symptom report."""
         low = query.lower()
 
-        # Check OFF patterns first
+        # 1. Guard check: if query contains symptom phrases like "won't turn on", "try to turn on", ignore turn on/off
+        is_symptom_turn = any(re.search(pat, low) for pat in self._SYMPTOM_DIRECTION_GUARDS)
+
+        # 2. Check explicit OFF commands
         for pat in self._OFF_PATTERNS:
             if re.search(pat, low):
                 return Direction.OFF
 
-        # Check ON patterns
-        for pat in self._ON_PATTERNS:
-            if re.search(pat, low):
-                return Direction.ON
+        # 3. Check explicit ON commands (only if not a symptom failure report)
+        if not is_symptom_turn:
+            for pat in self._ON_PATTERNS:
+                if re.search(pat, low):
+                    return Direction.ON
 
         return Direction.NONE
 
@@ -140,3 +169,4 @@ class QueryParser:
         elif direction == Direction.ON:
             return f"Enable / configure {feature} to resolve issue"
         return f"Troubleshoot {feature} issue: {state}"
+

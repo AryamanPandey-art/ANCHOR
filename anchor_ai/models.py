@@ -20,6 +20,7 @@ class QueryIntent(BaseModel):
     direction: Direction = Field(default=Direction.NONE, description="Target direction: ON, OFF, or null if unspecified")
     technical_keywords: List[str] = Field(default_factory=list, description="Extracted domain keywords")
     device_model: Optional[str] = Field(default=None, description="Extracted Galaxy / Samsung device model if present")
+    sub_symptoms: List[str] = Field(default_factory=list, description="Individual extracted symptom clauses from multi-clause queries")
 
 
 class SIISSection(BaseModel):
