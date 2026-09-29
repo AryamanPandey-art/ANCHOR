@@ -1,248 +1,554 @@
-# ANCHOR — Proof-Carrying Troubleshooting Engine
+# ANCHOR
 
-> **Samsung PRISM Generative AI Hackathon 2026–27**  
-> **Theme 2:** Guided Troubleshooting  
-> *"AI can propose an action. ANCHOR proves whether that action is grounded in official Samsung evidence and backed by an authorized deeplink. If proof is missing, ANCHOR refuses execution."*
+### Proof-Carrying Troubleshooting Engine
 
----
+ANCHOR is a deterministic troubleshooting and verification engine designed to provide **grounded, evidence-backed device troubleshooting actions** using the official Samsung Student Kit dataset.
 
-## 1. Project Overview
+Instead of allowing an AI system to freely generate troubleshooting actions or deeplinks, ANCHOR constructs a verifiable chain:
 
-**ANCHOR** is a proof-carrying troubleshooting verification engine designed for Samsung mobile and tablet ecosystems. Rather than allowing conversational LLMs to directly hallucinate device settings actions, ANCHOR introduces a deterministic cryptographic-grade **Contract Guard** between generative AI proposals and device execution.
+**User Query → Intent → Official Evidence → Proposed Action → Official Deeplink → Contract Guard → Verified Result**
 
----
-
-## 2. The Problem
-
-Generative troubleshooting assistants frequently suffer from three critical failure modes:
-1. **Action Hallucination:** Recommending actions that have no software settings page or settings deeplink on the device.
-2. **Directional Inversion:** Inverting safety toggles (e.g., enabling touch sensitivity when the user asked to turn it off, or toggling orientation when the device is locked).
-3. **Dead Hardware Fallacies:** Proposing cloud backup or software toggle settings on completely black, dead, or powered-off screens that require physical hardware intervention (such as holding Volume Down + Power for 20 seconds).
+Every automated action must satisfy explicit grounding, support, direction, deeplink, and safety constraints before it can be presented as executable.
 
 ---
 
-## 3. The ANCHOR Solution
+## Overview
 
-ANCHOR introduces an unbypassable proof-carrying architecture where the generative AI is strictly restricted to **proposing** candidate actions. A deterministic verification kernel—**ANCHOR Contract Guard**—evaluates the proof against official Samsung SIIS documentation and an authoritative catalog of 578 masked settings deeplinks before any action is authorized.
+Modern troubleshooting systems can produce plausible-looking actions that are unsupported by the underlying documentation or point to invalid application routes.
+
+ANCHOR addresses this problem through a **proof-carrying troubleshooting pipeline**.
+
+The system:
+
+1. Parses the user's troubleshooting request.
+2. Determines the relevant troubleshooting intent and requested direction.
+3. Retrieves matching evidence from the official Samsung Student Kit dataset.
+4. Extracts an action supported by that evidence.
+5. Resolves the proposed action against the official deeplink catalog.
+6. Validates direction consistency.
+7. Applies deterministic Contract Guard checks.
+8. Produces either a verified `PASS` or a safe `REJECT`.
+
+Unsupported, fabricated, ambiguous, or hardware-dependent actions are prevented from reaching automated execution.
 
 ---
 
-## 4. Core Architecture Pipeline
+# Core Architecture
 
-```mermaid
-graph TD
-    UserQuery["1. User Query"] --> IntentModule["2. Intent & Direction Parser"]
-    IntentModule --> SIISRetrieval["3. Official SIIS Evidence Retrieval"]
-    SIISRetrieval --> AIProposal["4. AI Action Proposal"]
-    AIProposal --> AnchorVerification["5. ANCHOR Verification Kernel"]
-    AnchorVerification --> CatalogResolution["6. Official Masked Deeplink Matcher"]
-    CatalogResolution --> ContractGuard["7. Contract Guard (7 Checkpoints)"]
-    ContractGuard -->|All Checkpoints Valid| VerifiedPass["✓ VERIFIED RESPONSE (PASS)"]
-    ContractGuard -->|Any Constraint Fails| SafeRejection["✕ SAFE REJECTION (REJECTED)"]
+```text
+                         USER QUERY
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │  Intent Parser  │
+                    └────────┬────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │ SIIS Retriever  │
+                    └────────┬────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │ Action Compiler │
+                    └────────┬────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │    Deeplink     │
+                    │    Resolver     │
+                    └────────┬────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │ Contract Guard  │
+                    │   7 Gates       │
+                    └────────┬────────┘
+                             │
+                    ┌────────┴────────┐
+                    ▼                 ▼
+                 PASS              REJECT
+                    │                 │
+                    ▼                 ▼
+              Verified Action    Safe Rejection
 ```
 
 ---
 
-## 5. Why ANCHOR Is Different
+# Key Design Principles
 
-| Traditional GenAI Assistants | ANCHOR Troubleshooting Engine |
+## 1. Deterministic Processing
+
+The current troubleshooting pipeline does not rely on an LLM to invent actions or deeplinks.
+
+Intent extraction, evidence retrieval, action compilation, catalog resolution, and contract validation are implemented through deterministic processing, including:
+
+- Regex-based intent extraction
+- Keyword/token matching
+- Jaccard-style relevance matching
+- Explicit evidence grounding
+- Catalog-based deeplink resolution
+- Deterministic contract validation
+
+This makes the verification path reproducible.
+
+## 2. Evidence Grounding
+
+Actions must be grounded in retrieved SIIS evidence. If sufficient supporting evidence cannot be established, the pipeline rejects the proposed action.
+
+## 3. Official Deeplink Verification
+
+Proposed deeplinks are resolved against the official Student Kit deeplink catalog. Fabricated routes such as `settings://fabricated/toggle` are rejected.
+
+## 4. Direction Safety
+
+ANCHOR distinguishes between `ENABLE`, `DISABLE`, and `NONE`. A deeplink that performs the opposite operation from the user's requested direction is rejected.
+
+## 5. Hardware Action Isolation
+
+Troubleshooting procedures requiring physical interaction—such as force restart, hardware button combinations, physical inspection, or hardware recovery—are isolated from automated deeplink execution.
+
+---
+
+# Contract Guard
+
+The **Contract Guard** is the primary verification boundary of ANCHOR.
+
+It validates the proposed troubleshooting result through seven deterministic checks covering:
+
+- Evidence grounding
+- Explicit action support
+- Hardware intervention isolation
+- Deeplink validity
+- Official catalog membership
+- Direction consistency
+- Response/schema validity
+
+A result is only considered executable when the required validation gates pass.
+
+```text
+Evidence
+   │
+   ├── Grounded?
+   ├── Action explicitly supported?
+   ├── Hardware intervention?
+   ├── Deeplink present?
+   ├── Deeplink officially catalogued?
+   ├── Direction matches?
+   └── Response contract valid?
+            │
+            ▼
+        PASS / REJECT
+```
+
+---
+
+# Official Student Kit Integration
+
+ANCHOR uses the Samsung Student Kit data stored under:
+
+```text
+server/data/student-kit/
+```
+
+The integration includes:
+
+```text
+siis_responses.json
+deeplinks.json
+schema.py
+sample_output.json
+input.txt
+```
+
+The audited dataset contains:
+
+- **20 official SIIS records**
+- **20 official evaluation queries**
+- **578 official masked deeplink URIs**
+- Official Pydantic response schema
+
+The Student Kit data is treated as the source of truth for the troubleshooting pipeline.
+
+---
+
+# Supported Pipeline Outcomes
+
+ANCHOR intentionally does not attempt to automate every troubleshooting request.
+
+The audited official query set produced:
+
+| Result | Count |
+|---|---:|
+| Verified PASS | 6 |
+| Safe REJECT | 14 |
+| Total | 20 |
+
+The rejected cases primarily represent troubleshooting scenarios where the official evidence requires hardware intervention or otherwise cannot satisfy the automated execution contract.
+
+This behavior is intentional: **a rejection is preferable to an unsupported automated action.**
+
+---
+
+# Frontend
+
+The frontend is implemented as a dark technical console designed around the troubleshooting pipeline.
+
+### Main Navigation
+
+- Overview
+- Diagnose
+- Evidence
+- Solution
+- Engine
+
+### Overview
+
+Provides the complete troubleshooting workspace including the user query, intent, SIIS evidence, evidence graph, proposed action, deeplink, contract validation, pipeline status, evidence proof, and verification status.
+
+### Diagnose
+
+Focuses on the user problem, query input, intent classification, and diagnostic pipeline.
+
+### Evidence
+
+Focuses on official SIIS evidence, provenance, grounding, and explicit action support.
+
+### Solution
+
+Focuses on proposed action, action conditions, deeplink resolution, and contract decision.
+
+### Engine
+
+Focuses on Contract Guard, validation gates, decision-engine state, and evidence graph verification.
+
+---
+
+# Evidence Graph
+
+The Evidence Graph visually represents the proof chain:
+
+```text
+User Query
+     ↓
+SIIS Evidence
+     ↓
+Proposed Action
+     ↓
+Deeplink
+     ↓
+Contract Guard
+```
+
+The graph responds to the active navigation section:
+
+```text
+Diagnose  → Complaint node
+Evidence  → SIIS Evidence node
+Solution  → Action node
+Engine    → Validation node
+Overview  → Full graph
+```
+
+---
+
+# Safety and Verification Model
+
+ANCHOR follows a **fail-closed** approach. If a required verification condition fails, the result is rejected.
+
+| Test | Result |
 |---|---|
-| Treats LLM output as authoritative truth | Treats AI output as an unverified proposal |
-| Silently hallucinates non-existent settings | Verifies deeplink against 578 official masked URIs |
-| Cannot prove why an action was chosen | Builds an interactive Evidence Graph carrying provenance |
-| Forces an answer for 100% of queries | Safely rejects unsupported or physical hardware problems |
-| Recommends software backup for dead screens | Identifies physical button recovery and blocks software links |
+| Unsupported action | BLOCKED |
+| Fabricated deeplink | BLOCKED |
+| Direction mismatch | BLOCKED |
+| Missing evidence | BLOCKED |
+| Hardware action | BLOCKED |
+| Backend exception | BLOCKED |
+| Frontend PASS spoof | BLOCKED |
+| Empty query | REJECT |
+
+The frontend does not independently grant execution permission. The execution state depends on verified backend contract state.
 
 ---
 
-## 6. AI vs. ANCHOR Responsibility Separation
+# Validation and Testing
 
-$$\textbf{AI PROPOSES} \quad \longrightarrow \quad \textbf{ANCHOR VERIFIES} \quad \longrightarrow \quad \textbf{ONLY VERIFIED ACTIONS EXECUTE}$$
+## Automated Test Suite
 
-- **AI Responsibility (Proposal Only):** Semantic understanding, intent extraction, direction recognition, and drafting candidate troubleshooting steps.
-- **ANCHOR Responsibility (Deterministic Verification):** Verifying that evidence exists in Samsung SIIS documentation, confirming explicit textual support, validating direction compatibility (`ENABLE` vs `DISABLE`), enforcing catalog match in `deeplinks.json`, and validating Pydantic schemas in `schema.py`.
+```text
+npm test
 
----
-
-## 7. Official Student Kit Grounding
-
-ANCHOR executes strictly against the official **Samsung Theme 2 Student Kit**:
-- **Queries:** `server/data/student-kit/input.txt` (20 official benchmark evaluation queries)
-- **SIIS Knowledge Base:** `server/data/student-kit/siis_responses.json` (20 official Samsung SIIS responses)
-- **Deeplink Catalog:** `server/data/student-kit/deeplinks.json` (578 official masked settings URIs)
-- **Schema Specification:** `server/data/student-kit/schema.py` (`ContextDeeplinkResponse` Pydantic model)
-- **Reference Response:** `server/data/student-kit/sample_output.json` (Samsung reference output)
-
-Zero mock or demo records leak into production evaluation.
-
----
-
-## 8. The Contract Guard (7 Enforced Checkpoints)
-
-The **Contract Guard** (`server/engine/contractGuard.js`) guarantees that an action reaches the response context **only** when all 7 checkpoints pass:
-1. **Evidence Grounding:** Relevant SIIS record retrieved with $\ge 50\%$ semantic relevance.
-2. **Explicit Action Support:** The proposed action is explicitly documented in the retrieved SIIS text steps (`EXPLICIT` support level).
-3. **Hardware Manual Step Guard:** If the SIIS text prescribes physical button holding (e.g. Volume Down + Power for 20s) or charger inspection, ANCHOR rejects software execution.
-4. **Authoritative Catalog Deeplink:** The deeplink matches an existing masked URI (`voiceassist://masked/act/...`) in `deeplinks.json`.
-5. **Directional Safety:** `intent.targetDirection === action.direction === deeplink.direction` (`ENABLE` vs `DISABLE`).
-6. **Query & Intent Integrity:** Query is non-empty and non-ambiguous.
-7. **Pydantic Schema Validation:** The constructed payload passes strict validation against `schema.py`.
-
----
-
-## 9. PASS vs. REJECT Examples
-
-### PASS Example: Auto Rotate Calibration (Scenario 1)
-- **User Query:** *"My Nexa A14 screen looks distorted right after I received the phone and I need a test."*
-- **Intent:** `SCREEN_ROTATION` (`ENABLE`)
-- **Retrieved SIIS:** `#SIIS-ROW_20` (`Display > Screen rotation`)
-- **AI Proposal:** `Enable Auto Rotate` (Explicitly Supported: `true`)
-- **Deeplink:** `voiceassist://masked/act/7c340914be` (`DL-0461`, Catalog: `VALID`)
-- **Verdict:** **`PASS ✔`**
-- **Evidence Graph:** Fully illuminated green/cyan path from user complaint to validated response.
-
-### REJECT Example: Floating Circle Removal (Scenario 3)
-- **User Query:** *"My Nexa X1 has a floating circle that opened a panel. Remove it."*
-- **Intent:** `MULTI_WINDOW`
-- **Retrieved SIIS:** `#SIIS-ROW_12` (`Advanced features > Multi window`)
-- **AI Proposal:** `Customize the Quick Access panel` (Explicitly Supported: `false`)
-- **Deeplink:** `None` (Catalog: `INVALID`)
-- **Verdict:** **`REJECTED ✕`**
-- **Exact Reason:** *"Proposed action 'Customize the Quick Access panel' is not explicitly supported by the retrieved Samsung SIIS evidence."*
-- **Evidence Graph:** Red terminating edge routing directly to the `Rejection Terminal`.
-
----
-
-## 10. Technology Stack
-
-- **Frontend:** Vue 3, Vite, JetBrains Mono & Inter typography, Vanilla CSS with custom cyan neon design tokens.
-- **Backend:** Node.js (ES Modules), Express, in-process deterministic vector/semantic search.
-- **Validation:** Python 3 + Pydantic v2 (executing official Samsung `schema.py`).
-- **Orchestration:** `concurrently` managing backend (port 3001) and frontend (port 5173).
-
----
-
-## 11. Project Structure
-
+57/57 assertions passed
+0 failed
+0 skipped
 ```
+
+## Sidebar Navigation Tests
+
+```text
+node server/tests/sidebarNav.test.js
+
+37/37 passed
+0 failed
+```
+
+The navigation test verifies click handling, active state, view switching, header synchronization, and Evidence Graph synchronization.
+
+## Production Build
+
+```bash
+npx vite build
+```
+
+Result: **SUCCESS — 0 errors, 0 warnings.**
+
+## API Verification
+
+The audited backend was available at:
+
+```text
+http://localhost:3001
+```
+
+Verified endpoints:
+
+```text
+GET  /api/session
+GET  /api/data-audit
+POST /api/diagnose
+```
+
+### Valid Query
+
+```json
+{
+  "query": "My screen isn't rotating automatically."
+}
+```
+
+Result: `PASS`
+
+### Empty Query
+
+```json
+{
+  "query": ""
+}
+```
+
+Result: `FAIL`
+
+The empty-query gateway issue was fixed so an explicitly supplied empty string is no longer replaced by a default troubleshooting query.
+
+---
+
+# Repository Structure
+
+```text
 ANCHOR/
-├── dist/                              # Compiled production distribution
-├── public/                            # Static assets and favicons
-├── server/
-│   ├── data/
-│   │   ├── student-kit/               # Official Samsung Student Kit files
-│   │   │   ├── input.txt              # 20 official benchmark queries
-│   │   │   ├── siis_responses.json    # 20 official SIIS records
-│   │   │   ├── deeplinks.json         # 578 official masked deeplinks
-│   │   │   ├── schema.py              # Official Pydantic schema
-│   │   │   ├── sample_output.json     # Official reference response
-│   │   │   └── siisLoader.js          # Explicit grounding parser
-│   │   └── index.js                   # Authoritative data gateway
-│   ├── engine/
-│   │   ├── intentParser.js            # Directional intent classifier
-│   │   ├── evidenceRetriever.js       # SIIS semantic search
-│   │   ├── actionCompiler.js          # Action compiler with explicit grounding
-│   │   ├── deeplinkResolver.js        # Catalog matcher
-│   │   ├── contractGuard.js           # 7-checkpoint gatekeeper
-│   │   ├── graphBuilder.js            # Dynamic Evidence Graph compiler
-│   │   └── pipeline.js                # Full diagnostic pipeline
-│   ├── tests/
-│   │   ├── pipeline.test.js           # 15 scenario automated regression suite
-│   │   ├── final-grounding-audit.json # Machine-readable 20-query audit report
-│   │   └── final-grounding-audit.md   # Markdown 20-query audit report
-│   └── index.js                       # Express API server (port 3001)
+│
+├── public/
 ├── src/
-│   ├── components/                    # 12 active locked dashboard components
-│   │   ├── ActionCard.vue             # AI Proposal vs ANCHOR Verification
-│   │   ├── DeeplinkCard.vue           # Official Masked Deeplink Card
-│   │   ├── EvidenceGraph.vue          # Interactive SVG Evidence Graph
-│   │   ├── EvidenceProofPanel.vue     # Bottom Evidence Proof Panel
-│   │   ├── Header.vue                 # System status bar
-│   │   ├── IntentCard.vue             # Intent & Direction Analysis
-│   │   ├── PipelineStatusPanel.vue    # Stepper pipeline status
-│   │   ├── ProofVerificationPanel.vue # Integrity & Constraint panel
-│   │   ├── Sidebar.vue                # Navigation rail
-│   │   ├── SiisEvidenceCard.vue       # Direct SIIS quote & badge
-│   │   ├── UserQueryCard.vue          # Query input & 3 Demo Mode scenarios
-│   │   └── ValidationCard.vue         # Contract checklist & overall status
-│   ├── App.vue                        # Main dashboard orchestration
-│   ├── index.css                      # Global console styling & tokens
-│   └── main.js                        # Vue 3 entry point
-├── package.json                       # Scripts and dependencies
-├── requirements.txt                   # Python Pydantic requirements
-├── vite.config.js                     # Vite build & proxy config
-├── .env.example                       # Environment template
-└── PHASE-8-FINAL-READINESS.md         # Submission audit report
+│   ├── components/
+│   │   ├── ActionCard.vue
+│   │   ├── DeeplinkCard.vue
+│   │   ├── EvidenceGraph.vue
+│   │   ├── Header.vue
+│   │   ├── IntentCard.vue
+│   │   ├── PipelineStatusPanel.vue
+│   │   ├── ProofVerificationPanel.vue
+│   │   ├── SiisEvidenceCard.vue
+│   │   ├── UserQueryCard.vue
+│   │   └── ValidationCard.vue
+│   ├── App.vue
+│   └── ...
+├── server/
+│   ├── engine/
+│   │   ├── actionCompiler.js
+│   │   ├── contractGuard.js
+│   │   ├── deeplinkResolver.js
+│   │   ├── intentParser.js
+│   │   ├── orchestrator.js
+│   │   ├── schemaValidator.js
+│   │   └── siisRetriever.js
+│   ├── data/
+│   │   └── student-kit/
+│   │       ├── deeplinks.json
+│   │       ├── input.txt
+│   │       ├── sample_output.json
+│   │       ├── schema.py
+│   │       └── siis_responses.json
+│   ├── tests/
+│   │   ├── pipeline.test.js
+│   │   └── sidebarNav.test.js
+│   └── index.js
+├── index.html
+├── package.json
+├── package-lock.json
+├── vite.config.js
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-## 12. Quick Start & Installation
+# Technology Stack
 
-### Prerequisites
-- **Node.js:** v18.0.0 or higher
-- **Python:** v3.9+ with `pydantic>=2.0.0`
+### Frontend
 
-### 1. Install Node Dependencies
+- Vue.js
+- Vite
+- JavaScript
+- CSS
+
+### Backend
+
+- Node.js
+- Express
+- Deterministic troubleshooting engine
+
+### Validation
+
+- Python
+- Pydantic
+- Official Student Kit `schema.py`
+
+### Testing
+
+- Node.js native test runner
+- Integration tests
+- Browser/CDP interaction testing
+
+### Version Control
+
+- Git
+- GitHub
+
+---
+
+# Local Development
+
+## Prerequisites
+
+- Node.js
+- npm
+- Python 3.12+
+- Pydantic
+
+## Install Dependencies
+
 ```bash
 npm install
-```
-
-### 2. Install Python Dependencies
-```bash
 pip install -r requirements.txt
 ```
 
-### 3. Run the Full Application (Backend + Frontend)
-```bash
-npm start
+## Run the Application
+
+Use the scripts defined in `package.json` for the current repository version.
+
+The audited development environment used:
+
+```text
+Frontend: http://localhost:5173/
+Backend:  http://localhost:3001/
 ```
-- Backend starts at: `http://localhost:3001`
-- Frontend starts at: `http://localhost:5173`
 
 ---
 
-## 13. Running Automated Tests
+# API
 
-Run the full 15-scenario regression test suite:
-```bash
-npm test
+## Diagnose
+
+```http
+POST /api/diagnose
 ```
-**Result:** 57/57 passed assertions, 0 failed.
 
----
+Example:
 
-## 14. Building for Production
-
-```bash
-npm run build
+```json
+{
+  "query": "My screen isn't rotating automatically."
+}
 ```
-Generates an optimized client bundle in `dist/` ready for deployment.
+
+The endpoint returns the troubleshooting pipeline result, including evidence, proposed action, deeplink resolution, contract validation, and final verdict.
+
+## Session
+
+```http
+GET /api/session
+```
+
+Returns current application/session state.
+
+## Data Audit
+
+```http
+GET /api/data-audit
+```
+
+Provides information about the loaded Student Kit dataset and its records.
 
 ---
 
-## 15. Live Demo Scenarios for Judges
+# Verification Philosophy
 
-The **User Query Card** features 3 pre-configured demo scenario buttons:
+ANCHOR is designed around the principle:
 
-1. **Scenario 1 — Verified Auto Rotate (`PASS ✔`):**
-   - Click `S1: Auto Rotate [PASS]`
-   - Demonstrates: Distorted display symptom $\rightarrow$ Orientation lock intent $\rightarrow$ SIIS `#SIIS-ROW_20` grounding $\rightarrow$ Masked Deeplink `act/7c340914be` $\rightarrow$ Green verified Evidence Graph path.
+> **No evidence, no action.**  
+> **No valid contract, no execution.**
 
-2. **Scenario 2 — Verified Data Backup (`PASS ✔`):**
-   - Click `S2: Data Backup [PASS]`
-   - Demonstrates: Cracked screen symptom $\rightarrow$ Cloud data backup action grounded per `sample_output.json` $\rightarrow$ Masked Deeplink `act/b3ed3ed663` $\rightarrow$ Green verified Evidence Graph path.
+The system prioritizes traceability and verification over generating an answer for every possible query.
 
-3. **Scenario 3 — Safe Rejection (`REJECTED ✕`):**
-   - Click `S3: Floating Circle [REJECTED]`
-   - Demonstrates: Request to remove floating circle $\rightarrow$ Action unsupported in SIIS doc $\rightarrow$ No catalog deeplink exists $\rightarrow$ Contract Guard blocks execution $\rightarrow$ Red terminating Evidence Graph path.
-
-4. **New Query Reset (`IDLE ○`):**
-   - Click `New Query`
-   - Demonstrates: Full reset to clean idle state, stopping all animations without stale pass/fail verdicts.
+A successful result should be explainable through a concrete chain of evidence rather than relying solely on model confidence or generated text.
 
 ---
 
-## 16. The ANCHOR Safety Principle
+# Current Verification Status
 
-> *"ANCHOR's core value is not that it forces an answer to 20/20 queries. Its value is that it proves why an answer is safe to execute—and refuses to hallucinate a software settings deeplink when a device's screen is physically black or when no catalog deeplink exists."*
+The final technical audit reported:
+
+```text
+57/57 automated assertions passed
+37/37 sidebar navigation assertions passed
+Production build passed
+Empty-query gateway fix verified
+Physical browser interaction verified
+Contract Guard adversarial checks passed
+Official Student Kit integration verified
+```
+
+The final audit classified the implementation as:
+
+**COMPLETE**
+
+with the reported functional, security, gateway, navigation, and browser-interaction checks passing.
+
+---
+
+# Team Contribution Areas
+
+| Area | Responsibility |
+|---|---|
+| Frontend | Vue interface, visualization, navigation, API integration |
+| Backend | Troubleshooting pipeline and API |
+| Verification | Contract Guard, deeplink validation, evidence grounding |
+| Data Integration | Official Student Kit dataset and schema |
+| Testing | Pipeline, navigation, adversarial and browser verification |
+| Documentation | Technical audit reports and project documentation |
+
+---
+
+# Project Objective
+
+ANCHOR demonstrates how a troubleshooting system can combine:
+
+**Evidence + deterministic reasoning + catalog verification + contract enforcement + interactive visualization**
+
+to produce troubleshooting results that are traceable and verifiable.
+
+---
+
+## License
+
+This repository contains project-specific implementation code and integrated Samsung Student Kit materials. Refer to the applicable project, competition, and source-material terms before redistributing any third-party dataset or documentation.
