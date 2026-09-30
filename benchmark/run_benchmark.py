@@ -3,7 +3,7 @@
 import json
 import time
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from backend.cache.memory_cache import get_cache
 from backend.models.request import TroubleshootRequest, SIISPayload

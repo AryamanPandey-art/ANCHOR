@@ -23,7 +23,7 @@ def get_session():
 @router.get("/api/data-audit")
 def get_data_audit():
     cache = get_cache()
-    deeplink_count = len(cache.deeplinks) if cache.deeplinks else 578
+    deeplink_count = len(cache.valid_deeplink_uris) if cache.valid_deeplink_uris else 578
     return {
         "dataset": "Samsung Theme 2 Student Kit",
         "siisResponsesCount": 20,
