@@ -1,3 +1,9 @@
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+
 # Python
 __pycache__/
 *.py[cod]
@@ -21,11 +27,7 @@ env/
 .vscode/
 .idea/
 
-# macOS
+# macOS / OS
 .DS_Store
-# Frontend dependencies / build output
-node_modules/
-dist/
-
-# Legacy Node prototype - not part of production architecture
-server/
+Thumbs.db
+*.bak
