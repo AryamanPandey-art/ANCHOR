@@ -338,5 +338,7 @@ ANCHOR/
 
 **Team ANCHOR** — Samsung PRISM Generative AI Hackathon 3.0
 
-- Aryaman Pandey
-- Vedaang
+1. Vedaang Pratap Singh
+2. Mayank Singh
+3. Maitri Tyagi
+4. Aryaman Narain Pandey

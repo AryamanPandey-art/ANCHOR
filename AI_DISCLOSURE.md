@@ -1,7 +1,7 @@
 # ANCHOR — AI Disclosure Document
 
 **Samsung PRISM Generative AI Hackathon 3.0 — Theme 2**
-**Team:** Team ANCHOR
+**Team:** Team ANCHOR (Vedaang Pratap Singh, Mayank Singh, Maitri Tyagi, Aryaman Narain Pandey)
 **Date:** September 30, 2026
 
 ---
