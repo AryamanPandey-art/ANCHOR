@@ -1,3 +1,9 @@
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+
 # Python
 __pycache__/
 *.py[cod]
@@ -21,5 +27,7 @@ env/
 .vscode/
 .idea/
 
-# macOS
+# macOS / OS
 .DS_Store
+Thumbs.db
+*.bak
