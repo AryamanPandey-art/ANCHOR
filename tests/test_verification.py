@@ -117,3 +117,60 @@ def test_verified_action_is_converted_to_schema():
     assert step_group.actionableDeeplink.deeplink == entry["deeplink"]
     assert step_group.validationDeeplink.deeplink == entry["validation"]["deeplink"]
     assert step_group.validationDeeplink.key == entry["validation"]["key"]
+
+
+def test_direction_mismatch_on_siis_for_off_query_returns_empty_contexts():
+    verifier = ActionVerifier()
+
+    siis_text = "To improve touch response, enable Touch sensitivity in Settings. Open Settings, tap Display, and turn on Touch sensitivity."
+
+    result = verifier.verify_intelligence({
+        "query_intent": {
+            "intent_summary": "Turn off touch sensitivity",
+            "direction": "OFF",
+        },
+        "parsed_siis": {
+            "title": "Touch sensitivity",
+            "raw_content": siis_text,
+        },
+        "candidate_actions": [{
+            "action_name": "Touch sensitivity",
+            "description": "To improve touch response, enable Touch sensitivity in Settings.",
+            "steps": ["To improve touch response, enable Touch sensitivity in Settings.", "Open Settings, tap Display, and turn on Touch sensitivity."],
+            "evidence_text": siis_text,
+            "category_hint": "auto",
+            "confidence": 1.0,
+        }],
+    })
+
+    assert isinstance(result, ContextDeeplinkResponse)
+    assert result.contexts == []
+
+
+def test_direction_match_on_siis_for_on_query_returns_action():
+    verifier = ActionVerifier()
+
+    siis_text = "To improve touch response, enable Touch sensitivity in Settings. Open Settings, tap Display, and turn on Touch sensitivity."
+
+    result = verifier.verify_intelligence({
+        "query_intent": {
+            "intent_summary": "Turn on touch sensitivity",
+            "direction": "ON",
+        },
+        "parsed_siis": {
+            "title": "Touch sensitivity",
+            "raw_content": siis_text,
+        },
+        "candidate_actions": [{
+            "action_name": "Touch sensitivity",
+            "description": "To improve touch response, enable Touch sensitivity in Settings.",
+            "steps": ["To improve touch response, enable Touch sensitivity in Settings.", "Open Settings, tap Display, and turn on Touch sensitivity."],
+            "evidence_text": siis_text,
+            "category_hint": "auto",
+            "confidence": 1.0,
+        }],
+    })
+
+    assert isinstance(result, ContextDeeplinkResponse)
+    assert len(result.contexts) == 1
+    assert result.contexts[0].actions[0].stepGroups[0].actionableDeeplink.deeplink == "bixby://masked/act/14eb42b895"

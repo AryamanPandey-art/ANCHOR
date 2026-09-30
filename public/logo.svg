@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="cyanGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff" />
+      <stop offset="100%" stop-color="#0072ff" />
+    </linearGradient>
+    <filter id="neonBlur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  <path d="M 50 18 L 82 82 L 68 82 L 50 44 L 32 82 L 18 82 Z" fill="url(#cyanGlow)" filter="url(#neonBlur)" />
+  <path d="M 28 62 L 72 62" stroke="#00f0ff" stroke-width="6" stroke-linecap="round" filter="url(#neonBlur)" />
+</svg>

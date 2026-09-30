@@ -2,14 +2,15 @@
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 from backend.api.health import router as health_router
 from backend.api.troubleshoot import router as troubleshoot_router
+from backend.api.dashboard import router as dashboard_router
 from backend.cache.memory_cache import get_cache
-from backend.models.error import HTTPErrorResponse, ErrorDetail
 
 
 @asynccontextmanager
@@ -25,6 +26,15 @@ app = FastAPI(
     description="Samsung PRISM Hackathon 3.0 Backend Implementation",
     version="1.0.0",
     lifespan=lifespan,
+)
+
+# Enable CORS for Vue 3 frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -62,6 +72,7 @@ async def pydantic_validation_exception_handler(request: Request, exc: Validatio
 
 app.include_router(health_router)
 app.include_router(troubleshoot_router)
+app.include_router(dashboard_router)
 
 
 if __name__ == "__main__":

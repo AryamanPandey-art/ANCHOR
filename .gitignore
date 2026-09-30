@@ -23,3 +23,9 @@ env/
 
 # macOS
 .DS_Store
+# Frontend dependencies / build output
+node_modules/
+dist/
+
+# Legacy Node prototype - not part of production architecture
+server/

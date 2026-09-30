@@ -38,9 +38,7 @@ client = TestClient(app)
 def test_01_health_endpoint():
     response = client.get("/health")
     assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "ok"
-    assert "version" in data
+    assert response.json() == {"status": "ok"}
 
 
 # 2. valid /v1/troubleshoot
