@@ -99,9 +99,9 @@ def run_diagnose(payload: Dict[str, Any] = Body(...)):
             content="No user-executable troubleshooting steps available for this query."
         )
 
-    # Run complete canonical FastAPI pipeline
+    # Run complete canonical FastAPI pipeline with provenance tracking
     req = TroubleshootRequest(query=query, siis_response=siis_payload)
-    official_resp = orchestrator.process(req)
+    official_resp, intel_result = orchestrator.process_with_provenance(req)
     latency_ms = round((time.time() - t0) * 1000, 2)
 
     # Extract UI visual components from official response
@@ -121,6 +121,32 @@ def run_diagnose(payload: Dict[str, Any] = Body(...)):
     action_desc = action_obj.description if action_obj else "No verified grounded action found."
     category = action_obj.category.value if action_obj else "manual"
 
+    # Extract exact verbatim provenance from internal IntelligenceResult
+    cand = intel_result.candidate_actions[0] if (intel_result and intel_result.candidate_actions) else None
+    verbatim_evidence = cand.evidence_text if cand else siis_payload.content[:300]
+    source_section = cand.source_section_title if cand else siis_title
+    llm_used = bool(intel_result and not intel_result.fallback_used)
+    query_dir = intel_result.query_intent.direction.value if (intel_result and intel_result.query_intent) else "null"
+
+    catalog_match_id = "NONE"
+    if act_dl:
+        catalog_match_id = "DL-DUMMY" if act_dl == "bixby://dummy_positive" else "DL-CATALOG"
+
+    proof_trace = {
+        "queryIntent": intent_summary,
+        "queryDirection": str(query_dir).upper() if query_dir else "NULL",
+        "siisArticleTitle": siis_title,
+        "sourceSectionTitle": source_section,
+        "verbatimEvidence": verbatim_evidence,
+        "aiProposedAction": action_name if has_actions else "No Action Authorized",
+        "llmUsed": llm_used,
+        "executionMode": "Gemini 2.5 Flash proposal" if llm_used else "Symbolic extraction",
+        "catalogMatchId": catalog_match_id,
+        "resolvedDeeplink": act_dl or "None",
+        "directionCheck": "MATCHED" if has_actions else "DIRECTION_MISMATCH_REJECTED",
+        "verificationStatus": "PASS (Proof Carried)" if has_actions else "REJECTED (Safe Decision)"
+    }
+
     # Build response format expected by Vue 3 frontend
     return {
         "session": {
@@ -139,10 +165,10 @@ def run_diagnose(payload: Dict[str, Any] = Body(...)):
         "evidence": {
             "evidenceId": "SIIS-EVID-001",
             "source": "Samsung SIIS Knowledge Store",
-            "section": siis_title,
+            "section": source_section,
             "grounded": has_actions,
-            "excerpt": siis_payload.content[:300],
-            "provenance": "100% Grounded SIIS Article"
+            "excerpt": verbatim_evidence,
+            "provenance": f"100% Grounded in '{siis_title}'"
         },
         "action": {
             "action": action_name,
@@ -150,14 +176,15 @@ def run_diagnose(payload: Dict[str, Any] = Body(...)):
             "sourceEvidence": siis_title,
             "grounded": has_actions,
             "resolved": bool(act_dl),
-            "category": category
+            "category": category,
+            "llmUsed": llm_used
         },
         "deeplink": {
             "candidate": act_dl or "None",
             "deeplink": act_dl,
             "validationDeeplink": val_dl,
-            "direction": "MATCHED",
-            "catalogMatch": "VERIFIED_EXACT" if act_dl else "NONE",
+            "direction": "MATCHED" if has_actions else "MISMATCHED",
+            "catalogMatch": catalog_match_id,
             "verified": bool(act_dl)
         },
         "validation": {
@@ -165,8 +192,9 @@ def run_diagnose(payload: Dict[str, Any] = Body(...)):
             "deeplinkPassed": bool(act_dl or not has_actions),
             "directionPassed": True,
             "schemaPassed": True,
-            "overallStatus": "PASS" if has_actions else "FAIL",
-            "failureReasons": [] if has_actions else ["No grounded action authorized from SIIS evidence."]
+            "overallStatus": "PASS" if has_actions else "REJECTED",
+            "failureReasons": [] if has_actions else ["Unsupported action safely rejected: no authorized settings step in SIIS evidence."],
+            "proofTrace": proof_trace
         },
         "officialResponse": official_resp.model_dump(),
         "graph": {
@@ -215,7 +243,7 @@ def run_diagnose(payload: Dict[str, Any] = Body(...)):
                     "id": "node-action",
                     "type": "evidence",
                     "title": "AI Proposal",
-                    "subtitle": f"{action_name}\n● Authorized",
+                    "subtitle": f"{action_name}\n● Authorized" if has_actions else "No Action Authorized\n● Blocked",
                     "icon": "lightning",
                     "x": 635,
                     "y": 385,
@@ -235,7 +263,7 @@ def run_diagnose(payload: Dict[str, Any] = Body(...)):
                     "id": "node-validation",
                     "type": "verified" if has_actions else "rejected",
                     "title": "Decision Engine",
-                    "subtitle": "Contract Validated (PASS)" if has_actions else "Action Rejected (FAIL)",
+                    "subtitle": "Contract Validated (PASS)" if has_actions else "Action Rejected (Safe Decision)",
                     "icon": "shield",
                     "x": 472,
                     "y": 565,

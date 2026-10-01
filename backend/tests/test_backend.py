@@ -262,3 +262,167 @@ def test_21_pipeline_error_handling():
     # Testing graceful process execution
     res = orch.process(invalid_req)
     assert isinstance(res, ContextDeeplinkResponse)
+
+
+# 22. repeat request cache hit
+def test_22_repeat_request_cache_hit():
+    cache = get_cache()
+    cache.clear_response_cache()
+    orch = PipelineOrchestrator()
+
+    payload = {
+        "query": "Switch Time Format",
+        "siis_response": {
+            "title": "Time Format",
+            "content": "Switches between 12-hour and 24-hour time format to display time in your preferred style."
+        }
+    }
+    req = TroubleshootRequest(**payload)
+
+    # First execution (Cold)
+    resp1 = orch.process(req)
+    assert len(resp1.contexts) == 1
+
+    # Second execution (Repeat)
+    resp2 = orch.process(req)
+    assert resp2.model_dump() == resp1.model_dump()
+
+    stats = cache.cache_stats
+    assert stats["repeat_hits"] >= 1
+
+
+# 23. paraphrase cache hit
+def test_23_paraphrase_cache_hit():
+    cache = get_cache()
+    cache.clear_response_cache()
+    orch = PipelineOrchestrator()
+
+    siis_payload = {
+        "title": "Email server not responding on Samsung phone or tablet",
+        "content": "## Clear Cache\nTo clear the app's cache:\nNavigate to Settings.\nTap Apps.\nSelect your email app.\nTap Storage.\nTap Clear cache."
+    }
+
+    # Query 1
+    req1 = TroubleshootRequest(
+        query="My tablet screen flashes whenever I tap to open an email in Gmail.",
+        siis_response=SIISPayload(**siis_payload)
+    )
+    resp1 = orch.process(req1)
+    assert len(resp1.contexts) == 1
+
+    # Query 2 (Paraphrase)
+    req2 = TroubleshootRequest(
+        query="Opening Gmail on my tablet causes the screen to flash and blackout.",
+        siis_response=SIISPayload(**siis_payload)
+    )
+    resp2 = orch.process(req2)
+    assert resp2.model_dump() == resp1.model_dump()
+
+    stats = cache.cache_stats
+    assert stats["paraphrase_hits"] >= 1 or stats["repeat_hits"] >= 1
+
+
+# 24. cache isolation across different SIIS articles
+def test_24_cache_isolation_across_different_siis():
+    cache = get_cache()
+    cache.clear_response_cache()
+    orch = PipelineOrchestrator()
+
+    query = "How to adjust screen settings"
+    siis_article_a = {
+        "title": "Display & Brightness Settings",
+        "content": "To adjust brightness: Open Settings, tap Display, adjust Brightness slider."
+    }
+    siis_article_b = {
+        "title": "Cracked Glass Hardware Policy",
+        "content": "A cracked screen requires physical inspection by an authorized technician. Visit a Samsung Service Center for hardware replacement."
+    }
+
+    req_a = TroubleshootRequest(query=query, siis_response=SIISPayload(**siis_article_a))
+    resp_a = orch.process(req_a)
+
+    req_b = TroubleshootRequest(query=query, siis_response=SIISPayload(**siis_article_b))
+    resp_b = orch.process(req_b)
+
+    # Article A and Article B have different SIIS content and must produce distinct isolated responses
+    assert len(resp_a.contexts) >= 1
+    assert len(resp_b.contexts) >= 1
+    assert resp_a.contexts[0].title == "Display & Brightness Settings"
+    assert resp_b.contexts[0].title == "Cracked Glass Hardware Policy"
+    assert resp_a.model_dump() != resp_b.model_dump()
+
+
+# 25. cache isolation between ON and OFF queries
+def test_25_cache_isolation_on_vs_off():
+    cache = get_cache()
+    cache.clear_response_cache()
+    orch = PipelineOrchestrator()
+
+    siis_payload = {
+        "title": "Touch sensitivity",
+        "content": "To improve touch response, enable Touch sensitivity in Settings. Open Settings, tap Display, and turn on Touch sensitivity."
+    }
+
+    req_on = TroubleshootRequest(
+        query="How do I turn on touch sensitivity?",
+        siis_response=SIISPayload(**siis_payload)
+    )
+    resp_on = orch.process(req_on)
+
+    req_off = TroubleshootRequest(
+        query="How do I turn off touch sensitivity?",
+        siis_response=SIISPayload(**siis_payload)
+    )
+    resp_off = orch.process(req_off)
+
+    # ON query passes with deeplink; OFF query is rejected due to direction mismatch
+    assert len(resp_on.contexts) == 1
+    assert len(resp_off.contexts) == 0
+
+
+# 26. direction mismatch scenario for off query + on-only SIIS
+def test_26_direction_mismatch_rejection_scenario():
+    orch = PipelineOrchestrator()
+    siis_payload = {
+        "title": "Touch sensitivity",
+        "content": "To improve touch response, enable Touch sensitivity in Settings. Open Settings, tap Display, and turn on Touch sensitivity."
+    }
+    req = TroubleshootRequest(
+        query="How do I turn off touch sensitivity?",
+        siis_response=SIISPayload(**siis_payload)
+    )
+    resp = orch.process(req)
+    assert len(resp.contexts) == 0
+
+
+# 27. direction match pass scenario for on query + on-only SIIS
+def test_27_direction_match_pass_scenario():
+    orch = PipelineOrchestrator()
+    siis_payload = {
+        "title": "Touch sensitivity",
+        "content": "To improve touch response, enable Touch sensitivity in Settings. Open Settings, tap Display, and turn on Touch sensitivity."
+    }
+    req = TroubleshootRequest(
+        query="How do I turn on touch sensitivity?",
+        siis_response=SIISPayload(**siis_payload)
+    )
+    resp = orch.process(req)
+    assert len(resp.contexts) == 1
+    assert resp.contexts[0].actions[0].stepGroups[0].actionableDeeplink is not None
+    assert resp.contexts[0].actions[0].stepGroups[0].actionableDeeplink.deeplink.startswith("bixby://")
+
+
+# 28. unsupported query rejection scenario (water damage)
+def test_28_unsupported_query_water_damage_rejection():
+    orch = PipelineOrchestrator()
+    siis_payload = {
+        "title": "Water Damage Assessment",
+        "content": "If your device has been submerged in water, immediately power it down. Do not charge the device. Visit an authorized service center."
+    }
+    req = TroubleshootRequest(
+        query="My Samsung phone fell into water. What should I do?",
+        siis_response=SIISPayload(**siis_payload)
+    )
+    resp = orch.process(req)
+    assert len(resp.contexts) == 0
+

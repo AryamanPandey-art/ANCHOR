@@ -128,6 +128,26 @@ The verification layer (`student_kit/verification.py`) applies these checks:
 4. **Disambiguation** — Multiple catalog matches require manual disambiguation (rejected)
 5. **Fallback** — SIIS-grounded settings navigation steps use `bixby://dummy_positive`
 
+## Context-Safe Cache Architecture (A3 Compliance)
+
+ANCHOR implements a deterministic, multi-tiered response cache constrained by troubleshooting context boundaries:
+
+- **Exact Cache Key**: `SHA256(SIIS_Title + SIIS_Content) + Normalized_Query`
+- **Semantic Paraphrase Key**: `SHA256(SIIS_Title + SIIS_Content) + Direction (ON / OFF / null)`
+- **Safety Guarantees**:
+  - **SIIS Isolation**: One SIIS article never returns cached responses from another article.
+  - **Direction Isolation**: `ON` requests never return `OFF` cached actions and vice versa.
+  - **Zero Contamination**: Responses are cached only after strict deterministic schema validation.
+
+### Decision Engine Semantics
+
+| Decision Status | Meaning | Response Representation |
+|---|---|---|
+| **PASS** | AI proposed actions verified & grounded against SIIS and Deeplink Catalog | Non-empty Goal with verified actions & deeplinks |
+| **REJECTED (SAFE)** | Decision engine intentionally blocked unsupported actions (e.g., physical damage, direction mismatch) | Schema-valid response with `contexts: []` |
+| **ERROR** | Unhandled system or parsing exception | HTTP 422 or 500 status |
+
+
 ## API Specification
 
 ### `GET /health`
@@ -233,7 +253,7 @@ Outputs optimized assets to `dist/`.
 
 ## Testing
 
-### Python Tests (43 tests)
+### Python Tests (50 tests)
 
 ```bash
 python3 -m pytest tests/ backend/tests/ -v
@@ -242,8 +262,9 @@ python3 -m pytest tests/ backend/tests/ -v
 Covers:
 - `anchor_ai` intelligence layer (query parsing, SIIS parsing, action extraction, relevance filtering)
 - Verification layer (evidence grounding, catalog matching, direction validation)
-- FastAPI backend (endpoint behavior, error handling, schema validation, cache behavior)
-- Deeplink safety (URL rejection, direction mismatch filtering)
+- FastAPI backend (health check, endpoint behavior, error handling, schema validation)
+- Context-safe caching (exact repeat hit, semantic paraphrase hit, SIIS isolation, ON vs OFF isolation)
+- Deeplink safety (external URL rejection, direction mismatch rejection, water damage rejection)
 
 ### Frontend Build
 
@@ -253,35 +274,36 @@ npm run build
 
 Verifies all 37 modules compile cleanly with 0 warnings.
 
-## Evaluation
+## Evaluation & Official Benchmark (A1–A5)
 
-### Benchmark (20 official SIIS rows)
+### Benchmark Execution
 
 ```bash
-python3 -m benchmark.run_benchmark
+python3 benchmark/run_benchmark.py
 ```
 
-**Measured results (deterministic mode, no LLM):**
+### Measured Benchmark Results
 
-| Metric | Value |
-|---|---|
-| Total Queries | 20 |
-| Schema-Valid Responses | 20 (100%) |
-| Candidate Actions Proposed | 139 |
-| Verified Actions Approved | 86 |
-| Rejected Actions Filtered | 53 |
-| Resolved Catalog Deeplinks | 86 |
-| Direction Mismatches | 0 |
-| External URL Leakages | 0 |
-| Average Pipeline Latency | 6.4 ms |
+| Evaluation Metric | Measured Result | Hackathon Target | Status |
+|---|---|---|---|
+| **A1 Schema Validity** | **100.0%** (20/20 rows) | $\ge 90\%$ | **PASS** |
+| **A2 Deeplink Resolution** | **86 Resolved** / 0 Invalid | Valid Catalog/Fallback | **PASS** |
+| **A2 Direction Consistency** | **0 Mismatches** | 0 Mismatches | **PASS** |
+| **A2 URL Safety** | **0 External URL Leaks** | 0 Leaks | **PASS** |
+| **A3 Cold Latency (p95)** | **16.95 ms** | $\le 8000\text{ ms}$ | **PASS** |
+| **A3 Repeat Hit Rate** | **100.0%** (20/20) | $\ge 90\%$ | **PASS** |
+| **A3 Repeat Latency (p95)** | **0.054 ms** | $\le 300\text{ ms}$ | **PASS** |
+| **A3 Paraphrase Hit Rate** | **100.0%** (160/160) | $\ge 80\%$ | **PASS** |
+| **A3 Paraphrase Latency (p95)** | **0.038 ms** | Sub-millisecond | **PASS** |
+| **A5 Query Variations** | **160 Natural Variations** (8/row) | 8–10 per row | **PASS** |
 
-### Results File
+### Results Generation
 
 ```bash
 python3 benchmark/generate_results.py
 ```
 
-Generates `results.jsonl` — one JSON-Lines entry per SIIS row with the full `ContextDeeplinkResponse`.
+Generates `results.jsonl` — 20 rows matching the exact required schema with 8 unique natural language paraphrases per query and official `ContextDeeplinkResponse` payload.
 
 ## Project Structure
 

@@ -1,12 +1,19 @@
 """Generate results.jsonl from official SIIS dataset through the ANCHOR pipeline."""
 
 import json
+import sys
 import time
 from pathlib import Path
+
+# Ensure project root is in sys.path for standalone direct execution
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.cache.memory_cache import get_cache
 from backend.models.request import TroubleshootRequest, SIISPayload
 from backend.pipeline.orchestrator import PipelineOrchestrator
+
 
 
 QUERY_VARIATIONS_MAP = {

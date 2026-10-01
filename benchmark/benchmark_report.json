@@ -8,10 +8,55 @@
     "total_resolved_deeplinks": 86,
     "total_direction_mismatches": 0,
     "total_url_leakages": 0,
-    "avg_latency_ms": 6.42,
+    "avg_latency_ms": 6.7,
     "anchor_ai_fallback_count": 20,
     "schema_validity_pct": 100.0,
-    "deeplink_resolution_pct": 50.0
+    "deeplink_resolution_pct": 50.0,
+    "cold_phase": {
+      "phase_name": "Cold Requests",
+      "total_requests": 20,
+      "cache_hits": 0,
+      "cache_misses": 20,
+      "hit_rate_pct": 0.0,
+      "percentiles": {
+        "p50_ms": 4.047,
+        "p95_ms": 16.201,
+        "p99_ms": 26.263,
+        "mean_ms": 6.703,
+        "max_ms": 28.778,
+        "count": 20
+      }
+    },
+    "repeat_phase": {
+      "phase_name": "Repeat Requests",
+      "total_requests": 20,
+      "cache_hits": 20,
+      "cache_misses": 0,
+      "hit_rate_pct": 100.0,
+      "percentiles": {
+        "p50_ms": 0.273,
+        "p95_ms": 0.931,
+        "p99_ms": 0.97,
+        "mean_ms": 0.384,
+        "max_ms": 0.98,
+        "count": 20
+      }
+    },
+    "paraphrase_phase": {
+      "phase_name": "Paraphrase Requests",
+      "total_requests": 160,
+      "cache_hits": 160,
+      "cache_misses": 0,
+      "hit_rate_pct": 100.0,
+      "percentiles": {
+        "p50_ms": 0.229,
+        "p95_ms": 0.875,
+        "p99_ms": 0.898,
+        "mean_ms": 0.329,
+        "max_ms": 0.916,
+        "count": 160
+      }
+    }
   },
   "rows": [
     {
@@ -25,7 +70,7 @@
       "resolved_deeplink_count": 4,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 7.13,
+      "latency_ms": 7.613,
       "fallback_used": true,
       "error": null
     },
@@ -40,7 +85,7 @@
       "resolved_deeplink_count": 0,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 3.87,
+      "latency_ms": 4.139,
       "fallback_used": true,
       "error": null
     },
@@ -55,7 +100,7 @@
       "resolved_deeplink_count": 1,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 1.3,
+      "latency_ms": 1.463,
       "fallback_used": true,
       "error": null
     },
@@ -70,7 +115,7 @@
       "resolved_deeplink_count": 0,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 3.8,
+      "latency_ms": 3.706,
       "fallback_used": true,
       "error": null
     },
@@ -85,7 +130,7 @@
       "resolved_deeplink_count": 2,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 2.75,
+      "latency_ms": 3.071,
       "fallback_used": true,
       "error": null
     },
@@ -100,7 +145,7 @@
       "resolved_deeplink_count": 11,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 14.18,
+      "latency_ms": 14.725,
       "fallback_used": true,
       "error": null
     },
@@ -115,7 +160,7 @@
       "resolved_deeplink_count": 16,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 15.09,
+      "latency_ms": 15.539,
       "fallback_used": true,
       "error": null
     },
@@ -130,7 +175,7 @@
       "resolved_deeplink_count": 2,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 2.07,
+      "latency_ms": 2.513,
       "fallback_used": true,
       "error": null
     },
@@ -145,7 +190,7 @@
       "resolved_deeplink_count": 1,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 1.17,
+      "latency_ms": 1.346,
       "fallback_used": true,
       "error": null
     },
@@ -160,7 +205,7 @@
       "resolved_deeplink_count": 1,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 1.14,
+      "latency_ms": 1.384,
       "fallback_used": true,
       "error": null
     },
@@ -175,7 +220,7 @@
       "resolved_deeplink_count": 19,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 27.82,
+      "latency_ms": 28.778,
       "fallback_used": true,
       "error": null
     },
@@ -190,7 +235,7 @@
       "resolved_deeplink_count": 0,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 3.82,
+      "latency_ms": 4.069,
       "fallback_used": true,
       "error": null
     },
@@ -205,7 +250,7 @@
       "resolved_deeplink_count": 5,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 6.82,
+      "latency_ms": 7.046,
       "fallback_used": true,
       "error": null
     },
@@ -220,7 +265,7 @@
       "resolved_deeplink_count": 0,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 3.68,
+      "latency_ms": 3.911,
       "fallback_used": true,
       "error": null
     },
@@ -235,7 +280,7 @@
       "resolved_deeplink_count": 0,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 3.66,
+      "latency_ms": 3.67,
       "fallback_used": true,
       "error": null
     },
@@ -250,7 +295,7 @@
       "resolved_deeplink_count": 1,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 1.18,
+      "latency_ms": 1.42,
       "fallback_used": true,
       "error": null
     },
@@ -265,7 +310,7 @@
       "resolved_deeplink_count": 5,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 6.89,
+      "latency_ms": 6.937,
       "fallback_used": true,
       "error": null
     },
@@ -280,7 +325,7 @@
       "resolved_deeplink_count": 10,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 10.16,
+      "latency_ms": 10.283,
       "fallback_used": true,
       "error": null
     },
@@ -295,7 +340,7 @@
       "resolved_deeplink_count": 8,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 8.19,
+      "latency_ms": 8.417,
       "fallback_used": true,
       "error": null
     },
@@ -310,7 +355,7 @@
       "resolved_deeplink_count": 0,
       "direction_mismatch_count": 0,
       "url_leakage_detected": false,
-      "latency_ms": 3.59,
+      "latency_ms": 4.026,
       "fallback_used": true,
       "error": null
     }

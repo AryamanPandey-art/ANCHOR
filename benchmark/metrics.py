@@ -4,6 +4,24 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
+class LatencyPercentiles(BaseModel):
+    p50_ms: float = 0.0
+    p95_ms: float = 0.0
+    p99_ms: float = 0.0
+    mean_ms: float = 0.0
+    max_ms: float = 0.0
+    count: int = 0
+
+
+class CacheEvaluationPhase(BaseModel):
+    phase_name: str
+    total_requests: int = 0
+    cache_hits: int = 0
+    cache_misses: int = 0
+    hit_rate_pct: float = 0.0
+    percentiles: LatencyPercentiles = Field(default_factory=LatencyPercentiles)
+
+
 class BenchmarkRowMetric(BaseModel):
     row_id: str
     original_query: str
@@ -33,3 +51,9 @@ class BenchmarkSummary(BaseModel):
     anchor_ai_fallback_count: int = 0
     schema_validity_pct: float = 0.0
     deeplink_resolution_pct: float = 0.0
+
+    # Official A3 Cache & Latency Benchmarks
+    cold_phase: Optional[CacheEvaluationPhase] = None
+    repeat_phase: Optional[CacheEvaluationPhase] = None
+    paraphrase_phase: Optional[CacheEvaluationPhase] = None
+

@@ -17,21 +17,28 @@
       <div class="verification-row">
         <span class="v-label">Grounding Proof</span>
         <span class="v-val" :class="validationData?.groundingPassed ? 'status-pass' : 'status-fail'">
-          {{ validationData?.groundingPassed ? '✓ Validated' : '✕ Unverified' }}
+          {{ validationData?.groundingPassed ? '✓ Validated SIIS' : '✕ Unverified' }}
         </span>
       </div>
 
       <div class="verification-row">
         <span class="v-label">Deeplink Catalog</span>
         <span class="v-val" :class="validationData?.deeplinkPassed ? 'status-pass' : 'status-fail'">
-          {{ validationData?.deeplinkPassed ? '✓ Verified in Catalog' : '✕ Uncatalogued' }}
+          {{ validationData?.deeplinkPassed ? `✓ ${validationData?.proofTrace?.catalogMatchId || 'Catalog Verified'}` : '✕ Uncatalogued' }}
         </span>
       </div>
 
       <div class="verification-row">
         <span class="v-label">Direction Match</span>
         <span class="v-val" :class="validationData?.directionPassed ? 'status-pass' : 'status-fail'">
-          {{ validationData?.directionPassed ? '✓ Validated Direction' : '✕ Direction Mismatch' }}
+          {{ validationData?.groundingPassed ? `✓ ${validationData?.proofTrace?.queryDirection || 'ON'} Matched` : '✕ Direction Mismatch' }}
+        </span>
+      </div>
+
+      <div class="verification-row">
+        <span class="v-label">Execution Mode</span>
+        <span class="v-val" :class="validationData?.proofTrace?.llmUsed ? 'status-ai' : 'status-pass'">
+          {{ validationData?.proofTrace?.llmUsed ? '✓ AI Proposed → Verified' : '✓ Symbolic Fallback → Verified' }}
         </span>
       </div>
 
@@ -42,7 +49,16 @@
         </span>
       </div>
 
-      <div v-if="validationData?.overallStatus !== 'PASS' && validationData?.failureReasons && validationData.failureReasons.length" class="failure-reason-micro">
+      <!-- Verbatim Evidence Quote Snippet -->
+      <div v-if="validationData?.proofTrace?.verbatimEvidence" class="evidence-quote-box">
+        <span class="quote-title">EVIDENCE:</span>
+        <p class="quote-text">"{{ validationData.proofTrace.verbatimEvidence }}"</p>
+        <span v-if="validationData?.proofTrace?.sourceSectionTitle" class="quote-source">
+          Source: {{ validationData.proofTrace.sourceSectionTitle }}
+        </span>
+      </div>
+
+      <div v-else-if="validationData?.overallStatus !== 'PASS' && validationData?.failureReasons && validationData.failureReasons.length" class="failure-reason-micro">
         <span class="reason-micro-label">REASON:</span>
         <span class="reason-micro-val">{{ validationData.failureReasons[0] }}</span>
       </div>
@@ -95,8 +111,48 @@ export default {
   color: var(--color-green);
 }
 
+.status-ai {
+  color: #38bdf8;
+}
+
 .status-fail {
   color: #f43f5e;
+}
+
+.evidence-quote-box {
+  margin-top: 4px;
+  background: rgba(0, 180, 255, 0.06);
+  border: 1px solid rgba(0, 180, 255, 0.2);
+  border-radius: 4px;
+  padding: 4px 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quote-title {
+  font-size: 8.5px;
+  font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: 0.04em;
+}
+
+.quote-text {
+  color: #93c5fd;
+  font-size: 9.5px;
+  line-height: 1.35;
+  margin: 0;
+  font-style: italic;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.quote-source {
+  font-size: 8.5px;
+  color: #64748b;
+  font-weight: 500;
 }
 
 .failure-reason-micro {

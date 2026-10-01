@@ -26,8 +26,8 @@ class QueryParser:
     _OFF_PATTERNS = [
         r"\b(?:turn\s+off|turnoff|switch\s+off|switchoff)\s+(?!it\s+(?:after|when|on\s+its\s+own))([a-z0-9_\s]+)",
         r"\b(?:disable|deactivate)\s+([a-z0-9_\s]+)",
-        r"\b(?:wants?\s+to\s+remove|wants?\s+to\s+disable|wants?\s+to\s+turn\s+off|want\s+to\s+remove\s+it|get\s+rid\s+of)\b",
-        r"\b(?:remove|delete|dismiss)\s+(?:the\s+|this\s+)?(?:floating|shortcut|circle|panel|widget|pair)\b",
+        r"\b(?:wants?\s+to\s+remove|wants?\s+to\s+disable|wants?\s+to\s+turn\s+off|want\s+to\s+remove\s+it|get\s+rid\s+of|want\s+it\s+gone|wish\s+to\s+hide|want\s+(?:it\s+)?removed)\b",
+        r"\b(?:remove|delete|dismiss|hide)\s+(?:the\s+|this\s+)?(?:floating|shortcut|circle|panel|widget|pair)\b",
     ]
     _ON_PATTERNS = [
         r"\b(?:turn\s+on|turnon|switch\s+on|switchon)\s+(?!it\s+(?:after|when|on\s+its\s+own))([a-z0-9_\s]+)",
